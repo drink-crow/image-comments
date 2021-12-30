@@ -55,6 +55,51 @@ namespace LM.ImageComments.EditorComponent
             this.VisualBitmapScalingMode = BitmapScalingMode.HighQuality;
         }
 
+        public static BitmapFrame LoadSvg(Uri uri)
+        {
+            if(uri.IsFile)
+            {
+                // get extension
+                if(Path.GetExtension(uri.AbsolutePath).ToLower() == ".svg")
+                {
+                    try
+                    {
+                        var svgDoc = Svg.SvgDocument.Open<Svg.SvgDocument>(uri.AbsolutePath, null);
+                        var bitmap = svgDoc.Draw();
+                        var ms = new MemoryStream();
+                        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                        return BitmapFrame.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        public static BitmapFrame Load(MemoryStream steam, Uri uri)
+        {
+            var frame = LoadSvg(uri);
+            if(frame!=null)
+            {
+                return frame;
+            }
+            return BitmapFrame.Create(steam);
+        }
+
+        public static BitmapFrame Load(Stream steam, Uri uri)
+        {
+            var frame = LoadSvg(uri);
+            if (frame != null)
+            {
+                return frame;
+            }
+            return BitmapFrame.Create(steam);
+        }
+
         private bool LoadFromUri(string rawUri, string sourceFileDir, Action refreshAction, out string errorString)
         {
             if (string.IsNullOrWhiteSpace(rawUri))
@@ -84,7 +129,7 @@ namespace LM.ImageComments.EditorComponent
             {
                 //TODO [!]: Currently, this loading system prevents images from being changed on disk, fix this
                 //  e.g. using http://stackoverflow.com/questions/1763608/display-an-image-in-wpf-without-holding-the-file-open
-                Source = BitmapFrame.Create(DataUriLoader.Load(uri));
+                Source = Load(DataUriLoader.Load(uri), uri);
             }
             else if (canLoadFromWeb)
             {
@@ -99,7 +144,7 @@ namespace LM.ImageComments.EditorComponent
             if (!canLoadData && File.Exists(expandedUrl))
             {
                 var data = new MemoryStream(File.ReadAllBytes(expandedUrl));
-                Source = BitmapFrame.Create(data);
+                Source = Load(data, new Uri(expandedUrl));
                 // Create file system watcher to update changed image file.
                 _watcher = new FileSystemWatcher
                 {
